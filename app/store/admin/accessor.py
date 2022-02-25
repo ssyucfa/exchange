@@ -16,7 +16,6 @@ class AdminAccessor(BaseAccessor):
         await self.create_admin(
             email=app.config.admin.email, password=app.config.admin.password
         )
-        await self.get_by_email(app.config.admin.email)
 
     async def get_by_email(self, email: str) -> Optional[AdminModel]:
         admin = await AdminModel.query.where(AdminModel.email == email).limit(1).gino.first()

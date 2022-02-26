@@ -7,7 +7,7 @@ class UserModel(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     vk_id = db.Column(db.Integer(), nullable=False, unique=True)
     fio = db.Column(db.String(), nullable=False)
-    create_at = db.Column(db.Date())
+    create_at = db.Column(db.DateTime(), nullable=False)
 
 
 class SecuritiesModel(db.Model):
@@ -15,7 +15,8 @@ class SecuritiesModel(db.Model):
 
     id = db.Column(db.Integer(), primary_key=True)
     description = db.Column(db.String(), nullable=False)
-    start_cost = db.Column(db.String(), nullable=False)
+    cost = db.Column(db.Float(), nullable=False)
+    code = db.Column(db.String(), nullable=False)
 
 
 class SecuritiesForGameModel(db.Model):
@@ -23,7 +24,8 @@ class SecuritiesForGameModel(db.Model):
 
     id = db.Column(db.Integer(), primary_key=True)
     description = db.Column(db.String(), nullable=False)
-    cost = db.Column(db.String(), nullable=False)
+    cost = db.Column(db.Float(), nullable=False)
+    code = db.Column(db.String(), nullable=False)
     game_id = db.Column(db.Integer(), db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False)
 
 
@@ -34,16 +36,16 @@ class GameModel(db.Model):
     created_at = db.Column(db.Date(), nullable=False)
     chat_id = db.Column(db.Integer(), nullable=False)
     round = db.Column(db.Integer(), nullable=False)
-    users_finished_round = db.Column(db.String(), nullable=False)
+    users_finished_round = db.Column(db.JSON(), nullable=False)
     state = db.Column(db.String(), nullable=False)
 
 
-class GameUsersModel(db.Model):
-    __tablename__ = 'game_users'
+class UsersOfGameModel(db.Model):
+    __tablename__ = 'users_of_game'
 
     id = db.Column(db.Integer(), primary_key=True)
     game_id = db.Column(db.Integer(), db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.Integer(), db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer(), db.ForeignKey('user.id'), nullable=False)
 
 
 class BrokerageAccountModel(db.Model):
@@ -53,11 +55,11 @@ class BrokerageAccountModel(db.Model):
     game_id = db.Column(db.Integer(), db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer(), db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     money = db.Column(db.Integer(), nullable=False)
-    securities = db.Column(db.String())
+    securities = db.Column(db.JSON())
 
 
-class DevelopmentModel(db.Model):
-    __tablename__ = 'development'
+class EventModel(db.Model):
+    __tablename__ = 'event'
 
     id = db.Column(db.Integer(), primary_key=True)
     text = db.Column(db.String(), nullable=False)

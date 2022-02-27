@@ -30,7 +30,7 @@ class DatabaseConfig:
     port: int = 5432
     user: str = "postgres"
     password: str = "postgres"
-    database: str = "project"
+    database: str = "game"
 
 
 @dataclass

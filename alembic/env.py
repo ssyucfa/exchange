@@ -7,11 +7,21 @@ from sqlalchemy import pool
 
 from alembic import context
 
+from app.store.database.gino import db
+from app.web.config import Config
+
+
+with open(os.environ['CONFIGPATH']) as f:
+    cfg = yaml.safe_load(f)
+    app_config = Config(**cfg)
+
+
+def set_sqlalchemy_url(host: str, db: str):
+    config.set_main_option('sqlalchemy.url', f'postgres://{host}/{db}')
+
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-from app.store.database.gino import db
-
-
 config = context.config
 
 # Interpret the config file for Python logging.
@@ -31,18 +41,7 @@ target_metadata = db
 
 
 def run_migrations_offline():
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
-    set_sqlalchemy_url(app_config.db_host, app_config.db_name)
+    set_sqlalchemy_url(app_config.database.host, app_config.database.database)
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,

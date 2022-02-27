@@ -1,4 +1,14 @@
+from dataclasses import dataclass
+
 from app.store.database.gino import db
+
+
+@dataclass
+class User:
+    id: int
+    vk_id: int
+    fio: int
+    create_at: str
 
 
 class UserModel(db.Model):

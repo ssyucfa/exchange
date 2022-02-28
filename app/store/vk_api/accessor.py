@@ -6,6 +6,7 @@ from aiohttp import TCPConnector
 from aiohttp.client import ClientSession
 
 from app.base.base_accessor import BaseAccessor
+from app.game.models import Profile
 from app.store.vk_api.dataclasses import Update, Message, UpdateObject
 from app.store.vk_api.poller import Poller
 
@@ -59,6 +60,8 @@ class VkApiAccessor(BaseAccessor):
                     },
                 )
         ) as resp:
+            if resp.status != 200:
+                await self._get_long_poll_service()
             data = (await resp.json())["response"]
             self.logger.info(data)
             self.key = data["key"]
@@ -79,6 +82,9 @@ class VkApiAccessor(BaseAccessor):
                     },
                 )
         ) as resp:
+            if resp.status != 200:
+                await self.poll()
+
             data = await resp.json()
             self.logger.info(data)
             self.ts = data["ts"]
@@ -114,7 +120,7 @@ class VkApiAccessor(BaseAccessor):
             data = await resp.json()
             self.logger.info(data)
 
-    async def get_users(self, chat_id):
+    async def get_users(self, chat_id) -> typing.Union[Optional[list[Profile]], list]:
         async with self.session.post(
                 self._build_query(
                     host=API_PATH,
@@ -126,6 +132,17 @@ class VkApiAccessor(BaseAccessor):
                     },
                 )
         ) as resp:
-            data = (await resp.json())["response"]
-            self.logger.info(data['profiles'])
-            return data["profiles"]
+            if resp.status != 200:
+                await self.get_users(chat_id)
+
+            data = (await resp.json()).get("response")
+            if data is None:
+                return
+            return [
+                Profile(
+                    id=profile.get('id'),
+                    first_name=profile.get('first_name'),
+                    last_name=profile.get('last_name')
+                )
+                for profile in data.get("profiles")
+            ]

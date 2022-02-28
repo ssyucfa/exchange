@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from app.store.database.gino import db
 
@@ -8,7 +9,22 @@ class User:
     id: int
     vk_id: int
     fio: int
-    create_at: str
+    create_at: datetime
+
+
+@dataclass
+class Profile:
+    id: int
+    first_name: str
+    last_name: str
+
+
+@dataclass
+class Securities:
+    id: int
+    description: str
+    cost: float
+    code: str
 
 
 class UserModel(db.Model):

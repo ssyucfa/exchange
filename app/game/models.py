@@ -1,4 +1,30 @@
+from dataclasses import dataclass
+from datetime import datetime
+
 from app.store.database.gino import db
+
+
+@dataclass
+class User:
+    id: int
+    vk_id: int
+    fio: int
+    create_at: datetime
+
+
+@dataclass
+class VKProfile:
+    id: int
+    first_name: str
+    last_name: str
+
+
+@dataclass
+class Securities:
+    id: int
+    description: str
+    cost: float
+    code: str
 
 
 class UserModel(db.Model):
@@ -17,6 +43,9 @@ class SecuritiesModel(db.Model):
     description = db.Column(db.String(), nullable=False)
     cost = db.Column(db.Float(), nullable=False)
     code = db.Column(db.String(), nullable=False)
+
+    def as_dc(self):
+        return Securities(**self.to_dict())
 
 
 class SecuritiesForGameModel(db.Model):

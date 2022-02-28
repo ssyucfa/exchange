@@ -1,5 +1,5 @@
 import asyncio
-from asyncio import Task
+from asyncio import Task, Future
 from typing import Optional
 
 from app.store import Store
@@ -10,6 +10,10 @@ class Poller:
         self.store = store
         self.is_running = False
         self.poll_task: Optional[Task] = None
+
+    def _done_callback(self, result: Future):
+        if result.exception():
+            self.store.app.logger.exception('poller has stopped with expetion', exc_info=result.exception())
 
     async def start(self):
         self.is_running = True

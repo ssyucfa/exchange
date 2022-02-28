@@ -13,7 +13,7 @@ class User:
 
 
 @dataclass
-class Profile:
+class VKProfile:
     id: int
     first_name: str
     last_name: str
@@ -43,6 +43,9 @@ class SecuritiesModel(db.Model):
     description = db.Column(db.String(), nullable=False)
     cost = db.Column(db.Float(), nullable=False)
     code = db.Column(db.String(), nullable=False)
+
+    def as_dc(self):
+        return Securities(**self.to_dict())
 
 
 class SecuritiesForGameModel(db.Model):

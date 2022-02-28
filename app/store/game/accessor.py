@@ -1,10 +1,11 @@
+import asyncio
 from datetime import datetime
 
 from sqlalchemy.dialects.postgresql import insert
 
 from app.base.base_accessor import BaseAccessor
 from app.game.models import UserModel, User, GameModel, UsersOfGameModel, BrokerageAccountModel, SecuritiesModel, \
-    SecuritiesForGameModel, Securities
+    SecuritiesForGameModel, Securities, VKProfile
 from app.game.schemes import ListUserFinishedRoundSchema
 from app.store.vk_api.dataclasses import Update
 from app.web.app import Application
@@ -14,12 +15,12 @@ class GameAccessor(BaseAccessor):
     async def connect(self, app: "Application"):
         await app.database.connect()
 
-    async def prepare_to_start_game(self, update: Update, profiles: dict):
+    async def prepare_to_start_game(self, update: Update, profiles: list[VKProfile]) -> list[Securities]:
         users = await self.create_users(profiles)
-        await self.create_game(update, users)
+        return await self.create_game(update, users)
 
     @staticmethod
-    async def create_users(profiles: dict) -> list[User]:
+    async def create_users(profiles: list[VKProfile]) -> list[User]:
         await insert(UserModel).values(
             [
                 {
@@ -35,7 +36,7 @@ class GameAccessor(BaseAccessor):
 
         return [User(**user.to_dict()) for user in res]
 
-    async def create_game(self, update: Update, users: list[User]):
+    async def create_game(self, update: Update, users: list[User]) -> list[Securities]:
         users_json = ListUserFinishedRoundSchema().dump({'users': users})
         game = await GameModel.create(
             created_at=datetime.now(),
@@ -44,10 +45,13 @@ class GameAccessor(BaseAccessor):
             users_finished_round=users_json['users'],
             state='GOING'
         )
-        print(users)
-        await self.create_users_of_game(game.id, users)
-        await self.create_brokerage_accounts_for_users(game.id, users)
-        await self.create_securities_for_game(game.id)
+        _, _, securities = await asyncio.gather(
+            self.create_users_of_game(game.id, users),
+            self.create_brokerage_accounts_for_users(game.id, users),
+            self.create_securities_for_game(game.id)
+        )
+
+        return securities
 
     @staticmethod
     async def create_users_of_game(game_id: int, users: list[User]):
@@ -75,7 +79,7 @@ class GameAccessor(BaseAccessor):
             ]
         )
 
-    async def create_securities_for_game(self, game_id: int):
+    async def create_securities_for_game(self, game_id: int) -> list[Securities]:
         securities = await self.get_securities()
 
         await SecuritiesForGameModel.insert().gino.all(
@@ -90,6 +94,8 @@ class GameAccessor(BaseAccessor):
             ]
         )
 
+        return securities
+
     @staticmethod
     async def get_going_game(chat_id: int):
         game = await GameModel.query.where(
@@ -103,6 +109,6 @@ class GameAccessor(BaseAccessor):
         res = await SecuritiesModel.query.gino.all()
 
         return [
-            Securities(**s.to_dict())
+            s.as_dc()
             for s in res
         ]

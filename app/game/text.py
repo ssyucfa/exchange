@@ -1,4 +1,8 @@
 WAITING = 'Подождите немного, вк не отвечает'
 GAME_STARTED = 'Игра уже идет! Следите за игрой!'
 GAME_STARTING = 'Игра началась! Для покупки акций пишите "/buy <code> <count>"'
-
+GAME_NOT_STARTED = 'Игра ещеще не идет! Для начала игры: "/start_game"!'
+SECURITIES_IS_NOT_EXIST = 'Такой ценной бумаги не существует!'
+NO_MONEY = 'Не достаточно денег, для покупки.'
+BOUGHT = 'Покупка прошла успешно!'
+WRONG_MESSAGE_FOR_BUY = 'Неверный формат ввода("/buy <code> <count>")'

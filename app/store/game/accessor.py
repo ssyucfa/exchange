@@ -1,4 +1,5 @@
 import asyncio
+import random
 from datetime import datetime
 from typing import Union
 
@@ -7,9 +8,10 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.base.base_accessor import BaseAccessor
 from app.game.models import UserModel, User, GameModel, UsersOfGameModel, BrokerageAccountModel, SecuritiesModel, \
-    SecuritiesForGameModel, Securities, VKProfile, Game, BrokerageAccount, SecuritiesForGame
-from app.game.schemes import ListUserFinishedRoundSchema
-from app.game.text import NO_MONEY, BOUGHT
+    SecuritiesForGameModel, Securities, VKProfile, GameWithOptions, BrokerageAccount, SecuritiesForGame, EventModel, \
+    Event, Game
+from app.game.text import NO_MONEY, BOUGHT, ALREADY_END_ROUND, USER_END_ROUND, GAME_ENDED, BIG_COUNT, \
+    DONT_HAVE_SECURITIES
 from app.store.vk_api.dataclasses import Update
 from app.web.app import Application
 
@@ -40,12 +42,14 @@ class GameAccessor(BaseAccessor):
         return [User(**user.to_dict()) for user in res]
 
     async def create_game(self, update: Update, users: list[User]) -> list[Securities]:
-        users_json = ListUserFinishedRoundSchema().dump({'users': users})
+        finished = {}
+        for user in users:
+            finished[str(user.vk_id)] = False
         game = await GameModel.create(
             created_at=datetime.now(),
             chat_id=update.object.peer_id,
             round=1,
-            users_finished_round=users_json['users'],
+            users_finished_round=finished,
             state='GOING'
         )
         _, _, securities = await asyncio.gather(
@@ -100,7 +104,7 @@ class GameAccessor(BaseAccessor):
         return securities
 
     @staticmethod
-    async def get_going_game(chat_id: int):
+    async def get_going_game(chat_id: int) -> GameModel:
         game = await GameModel.query.where(
             and_(GameModel.chat_id == chat_id, GameModel.state == 'GOING')
         ).gino.first()
@@ -117,7 +121,7 @@ class GameAccessor(BaseAccessor):
         ]
 
     @staticmethod
-    async def get_info_about_game(chat_id: int) -> Game:
+    async def get_game_with_options(chat_id: int) -> GameWithOptions:
         res = (await GameModel.outerjoin(
             UsersOfGameModel, GameModel.id == UsersOfGameModel.game_id
         ).outerjoin(
@@ -133,7 +137,7 @@ class GameAccessor(BaseAccessor):
             )
         ).all())[0]
 
-        return Game(
+        return GameWithOptions(
             id=res.id,
             chat_id=res.chat_id,
             created_at=res.created_at,
@@ -160,10 +164,9 @@ class GameAccessor(BaseAccessor):
             ).gino.load(
                 SecuritiesForGameModel.distinct(SecuritiesForGameModel.id).load(game=GameModel)
             ).all()
-        )[0]
+        )
 
-        print(res)
-        return False if res is None else SecuritiesForGame(**res.to_dict())
+        return False if not res else SecuritiesForGame(**res[0].to_dict())
 
     @staticmethod
     async def buy_securities(vk_id: int, securities: SecuritiesForGameModel, count: str) -> str:
@@ -196,3 +199,114 @@ class GameAccessor(BaseAccessor):
 
         await brok_acc_model.update(securities=securities_json, money=money).apply()
         return BOUGHT + f'У вас в кошельке осталось {money}'
+
+    @staticmethod
+    async def cell_securities(vk_id: int, securities: SecuritiesForGameModel, count: str) -> str:
+        brok_acc_model = (
+            await BrokerageAccountModel.outerjoin(
+                UserModel, UserModel.id == BrokerageAccountModel.user_id
+            ).select().where(
+                and_(UserModel.vk_id == vk_id, BrokerageAccountModel.game_id == securities.game_id)
+            ).gino.load(
+                BrokerageAccountModel.distinct(BrokerageAccountModel.id).load(user=UserModel)
+            ).all()
+        )[0]
+        brok_acc = BrokerageAccount(**brok_acc_model.to_dict())
+
+        if brok_acc.securities[securities.code] < int(count):
+            return BIG_COUNT + str(brok_acc.securities[securities.code])
+
+        cost = securities.cost * int(count)
+        money = brok_acc.money + cost
+
+        if brok_acc.securities.get(securities.code) is None:
+            return DONT_HAVE_SECURITIES
+        brok_acc.securities[securities.code] -= int(count)
+
+        securities_json = brok_acc.securities
+
+        await brok_acc_model.update(securities=securities_json, money=money).apply()
+        return BOUGHT + f'У вас в кошельке {money}. Осталось {securities.code}: {securities_json[securities.code]}'
+
+    @staticmethod
+    async def get_events(game_id: int) -> str:
+        event_models = await EventModel.query.gino.all()
+        events = [
+            Event(**event.to_dict())
+            for event in event_models
+        ]
+
+        securities_models = await SecuritiesForGameModel.query.where(
+            SecuritiesForGameModel.game_id == game_id
+        ).gino.all()
+        securities = [
+            SecuritiesForGame(**s.to_dict())
+            for s in securities_models
+        ]
+        information = ''
+        for s, sm in zip(securities, securities_models):
+            event = random.choice(events)
+            old_cost = s.cost
+            s.cost = round(s.cost * event.diff, 2)
+
+            information += f'{event.text} Акции {s.code} изменились на {event.diff}. Старая цена {old_cost}.' \
+                           f' Новая цена {s.cost}. '
+
+            await sm.update(cost=s.cost).apply()
+
+        return information
+
+    async def end_game(self, game: GameModel) -> str:
+        information = GAME_ENDED + await self.get_winner(game.chat_id)
+        await game.update(state='ENDED').apply()
+
+        return information
+
+    async def get_winner(self, chat_id: int) -> str:
+        game = await self.get_game_with_options(chat_id)
+
+        costs_of_securities = {}
+        for s in game.securities:
+            costs_of_securities[s.code] = s.cost
+
+        wallets = []
+        self.logger.info(game.users)
+        for user in game.users:
+            broc_acc = BrokerageAccount(
+                **(
+                    await BrokerageAccountModel.query.where(
+                        and_(BrokerageAccountModel.user_id == user.id, BrokerageAccountModel.game_id == game.id)
+                    ).gino.first()
+                ).to_dict()
+            )
+            money = broc_acc.money
+            for key in broc_acc.securities:
+                money += broc_acc.securities[key] * costs_of_securities[key]
+
+            wallets.append((user.fio, money))
+
+        wallet = max(wallets, key=lambda w: w[1])
+        return f'Победитель {wallet[0]}. Цена его кошелька {wallet[1]}'
+
+    async def end_round(self, vk_id: str, chat_id: int) -> str:
+        game_model = await self.get_going_game(chat_id)
+        game = Game(**game_model.to_dict())
+        self.logger.info(game_model.to_dict())
+
+        if game.users_finished_round[vk_id]:
+            return ALREADY_END_ROUND
+
+        game.users_finished_round[vk_id] = True
+        await game_model.update(users_finished_round=game.users_finished_round).apply()
+        if not all(finished for finished in game.users_finished_round.values()):
+            return USER_END_ROUND
+
+        for user_id in game.users_finished_round:
+            game.users_finished_round[user_id] = False
+        game.round += 1
+        await game_model.update(users_finished_round=game.users_finished_round, round=game.round).apply()
+
+        if game.round == 11:
+            return await self.end_game(game_model)
+
+        return await self.get_events(game.id) + 'Начинается новый раунд.'

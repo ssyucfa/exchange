@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -19,8 +18,15 @@ class BrokerageAccount:
 class User:
     id: int
     vk_id: int
-    fio: int
+    fio: str
     create_at: datetime
+
+
+@dataclass
+class Event:
+    id: int
+    text: str
+    diff: float
 
 
 @dataclass
@@ -48,7 +54,7 @@ class SecuritiesForGame:
 
 
 @dataclass
-class Game:
+class GameWithOptions:
     id: int
     created_at: datetime
     chat_id: int
@@ -57,6 +63,16 @@ class Game:
     state: str
     users: list[User]
     securities: list[SecuritiesForGame]
+
+
+@dataclass
+class Game:
+    id: int
+    created_at: datetime
+    chat_id: int
+    round: int
+    users_finished_round: dict
+    state: str
 
 
 class UserModel(db.Model):

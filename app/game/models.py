@@ -11,7 +11,7 @@ class BrokerageAccount:
     game_id: int
     user_id: int
     money: float
-    securities: dict
+    securities: dict[str, int]
 
 
 @dataclass
@@ -54,18 +54,6 @@ class SecuritiesForGame:
 
 
 @dataclass
-class GameWithOptions:
-    id: int
-    created_at: datetime
-    chat_id: int
-    round: int
-    users_finished_round: dict
-    state: str
-    users: list[User]
-    securities: list[SecuritiesForGame]
-
-
-@dataclass
 class Game:
     id: int
     created_at: datetime
@@ -73,6 +61,12 @@ class Game:
     round: int
     users_finished_round: dict
     state: str
+
+
+@dataclass
+class GameWithOptions(Game):
+    users: list[User]
+    securities: list[SecuritiesForGame]
 
 
 class UserModel(db.Model):

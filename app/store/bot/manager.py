@@ -3,7 +3,6 @@ from logging import getLogger
 
 from app.game.models import Securities, User, SecuritiesForGame
 from app.game.text import *
-from app.store.bot.utils import only_for_going_game
 from app.store.vk_api.dataclasses import Update, Message
 
 if typing.TYPE_CHECKING:
@@ -49,48 +48,59 @@ class BotManager:
             return WAITING
 
         securities = await self.app.store.game.prepare_to_start_game(update, profiles)
+        if securities is None:
+            return UNKNOWN_ERROR
         return self.get_information_from_securities(securities=securities) + GAME_STARTING
 
-    @only_for_going_game
     async def get_info(self, update: Update) -> str:
         game = await self.app.store.game.get_game_with_options(update.object.peer_id)
+        if not game:
+            return GAME_NOT_STARTED
 
         information = self.get_information_from_users(game.users)
         information += self.get_information_from_securities(game.securities)
         information += f'Номер раунда {game.round}'
         return information
 
-    @only_for_going_game
     async def buy_securities(self, update: Update) -> str:
         if not self.message_buy_is_correct(update.object.text):
             return WRONG_MESSAGE_FOR_BUY
 
         _, code, count = update.object.text.split(' ')
 
-        securities = await self.app.store.game.is_securities_exist(code, update.object.peer_id)
-        if not securities:
+        game = await self.app.store.game.get_game_with_options(update.object.peer_id, code)
+        print(';s;s;')
+        if not game:
+            return GAME_NOT_STARTED
+
+        if not game.securities:
             return SECURITIES_IS_NOT_EXIST
 
         vk_id = update.object.user_id
-        return await self.app.store.game.buy_securities(vk_id, securities, count)
+        return await self.app.store.game.buy_securities(vk_id, game.securities[0], count)
 
-    @only_for_going_game
     async def cell_securities(self, update: Update) -> str:
         if not self.message_cell_is_correct(update.object.text):
             return WRONG_MESSAGE_FOR_CELL
 
         _, code, count = update.object.text.split(' ')
 
-        securities = await self.app.store.game.is_securities_exist(code, update.object.peer_id)
-        if not securities:
+        game = await self.app.store.game.get_game_with_options(update.object.peer_id, code)
+        if not game:
+            return GAME_NOT_STARTED
+
+        if not game.securities:
             return SECURITIES_IS_NOT_EXIST
 
         vk_id = update.object.user_id
-        return await self.app.store.game.cell_securities(vk_id, securities, count)
+        return await self.app.store.game.cell_securities(vk_id, game.securities[0], count)
 
-    @only_for_going_game
     async def end_round(self, update: Update) -> str:
-        information = await self.app.store.game.end_round(str(update.object.user_id), update.object.peer_id)
+        game = await self.app.store.game.get_going_game(update.object.peer_id)
+        if not game:
+            return GAME_NOT_STARTED
+
+        information = await self.app.store.game.end_round(str(update.object.user_id), game)
         return information
 
     async def handle_updates(self, updates: list[Update]):

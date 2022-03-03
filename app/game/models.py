@@ -1,15 +1,32 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 from app.store.database.gino import db
+
+
+@dataclass
+class BrokerageAccount:
+    id: int
+    game_id: int
+    user_id: int
+    money: float
+    securities: dict[str, int]
 
 
 @dataclass
 class User:
     id: int
     vk_id: int
-    fio: int
+    fio: str
     create_at: datetime
+
+
+@dataclass
+class Event:
+    id: int
+    text: str
+    diff: float
 
 
 @dataclass
@@ -25,6 +42,31 @@ class Securities:
     description: str
     cost: float
     code: str
+
+
+@dataclass
+class SecuritiesForGame:
+    id: int
+    description: str
+    cost: float
+    code: str
+    game_id: int
+
+
+@dataclass
+class Game:
+    id: int
+    created_at: datetime
+    chat_id: int
+    round: int
+    users_finished_round: dict
+    state: str
+
+
+@dataclass
+class GameWithOptions(Game):
+    users: list[User]
+    securities: list[SecuritiesForGame]
 
 
 class UserModel(db.Model):
@@ -57,6 +99,19 @@ class SecuritiesForGameModel(db.Model):
     code = db.Column(db.String(), nullable=False)
     game_id = db.Column(db.Integer(), db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False)
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._game: Optional['GameModel'] = None
+
+    @property
+    def game(self) -> 'GameModel':
+        return self._game
+
+    @game.setter
+    def game(self, val: Optional['GameModel']):
+        if val is not None:
+            self._game = val
+
 
 class GameModel(db.Model):
     __tablename__ = 'game'
@@ -67,6 +122,29 @@ class GameModel(db.Model):
     round = db.Column(db.Integer(), nullable=False)
     users_finished_round = db.Column(db.JSON(), nullable=False)
     state = db.Column(db.String(), nullable=False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._users: list['User'] = []
+        self._securities: list['SecuritiesForGame'] = []
+
+    @property
+    def users(self) -> list['User']:
+        return self._users
+
+    @property
+    def securities(self) -> list['SecuritiesForGame']:
+        return self._securities
+
+    @securities.setter
+    def securities(self, val: Optional['SecuritiesForGame']):
+        if val is not None:
+            self._securities.append(val)
+
+    @users.setter
+    def users(self, val: Optional['User']):
+        if val is not None:
+            self._users.append(val)
 
 
 class UsersOfGameModel(db.Model):
@@ -83,8 +161,21 @@ class BrokerageAccountModel(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     game_id = db.Column(db.Integer(), db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer(), db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
-    money = db.Column(db.Integer(), nullable=False)
+    money = db.Column(db.Float(), nullable=False)
     securities = db.Column(db.JSON())
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._user: Optional['UserModel'] = None
+
+    @property
+    def user(self) -> 'UserModel':
+        return self._user
+
+    @user.setter
+    def user(self, val: Optional['UserModel']):
+        if val is not None:
+            self._user = val
 
 
 class EventModel(db.Model):

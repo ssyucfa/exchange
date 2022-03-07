@@ -270,7 +270,6 @@ class GameAccessor(BaseAccessor):
             costs_of_securities[s.code] = s.cost
 
         wallets = []
-        self.logger.info(game.users)
         for user in game.users:
             broc_acc = BrokerageAccount(
                 **(

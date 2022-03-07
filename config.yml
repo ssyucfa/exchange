@@ -8,7 +8,7 @@ database:
   port: 5432
   user: postgres
   password: postgres
-  database: exchange
+  database: games
 bot:
   token: 17824c3237977f5241739fd1c565ca0afb5b12ab80ec75c784c55e8d16f6fc791308aba91d65cec7109ec
   group_id: 210481924

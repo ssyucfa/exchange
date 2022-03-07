@@ -70,7 +70,7 @@ class GameWithOptions(Game):
 
 
 class UserModel(db.Model):
-    __tablename__ = 'user'
+    __tablename__ = 'users'
 
     id = db.Column(db.Integer(), primary_key=True)
     vk_id = db.Column(db.Integer(), nullable=False, unique=True)
@@ -126,6 +126,8 @@ class GameModel(db.Model):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._users: list['User'] = []
+        self._users_id: list[int] = []
+        self._securities_id: list[int] = []
         self._securities: list['SecuritiesForGame'] = []
 
     @property
@@ -138,12 +140,14 @@ class GameModel(db.Model):
 
     @securities.setter
     def securities(self, val: Optional['SecuritiesForGame']):
-        if val is not None:
+        if val is not None and val.id not in self._securities_id:
+            self._securities_id.append(val.id)
             self._securities.append(val)
 
     @users.setter
     def users(self, val: Optional['User']):
-        if val is not None:
+        if val is not None and val.id not in self._users_id:
+            self._users_id.append(val.id)
             self._users.append(val)
 
 
@@ -152,7 +156,7 @@ class UsersOfGameModel(db.Model):
 
     id = db.Column(db.Integer(), primary_key=True)
     game_id = db.Column(db.Integer(), db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.Integer(), db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer(), db.ForeignKey('users.id'), nullable=False)
 
 
 class BrokerageAccountModel(db.Model):
@@ -160,7 +164,7 @@ class BrokerageAccountModel(db.Model):
 
     id = db.Column(db.Integer(), primary_key=True)
     game_id = db.Column(db.Integer(), db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.Integer(), db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer(), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     money = db.Column(db.Float(), nullable=False)
     securities = db.Column(db.JSON())
 
@@ -176,6 +180,9 @@ class BrokerageAccountModel(db.Model):
     def user(self, val: Optional['UserModel']):
         if val is not None:
             self._user = val
+
+    def as_dc(self) -> BrokerageAccount:
+        return BrokerageAccount(**self.to_dict())
 
 
 class EventModel(db.Model):

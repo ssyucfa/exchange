@@ -1,6 +1,7 @@
 from sqlalchemy import and_
 
-from app.game.models import UserModel, GameModel, Game, UsersOfGameModel, BrokerageAccountModel, SecuritiesModel
+from app.game.models import UserModel, GameModel, Game, UsersOfGameModel, BrokerageAccountModel, SecuritiesModel, \
+    WinnerModel
 from app.game.text import BOUGHT, NO_MONEY, CELLED, DONT_HAVE_SECURITIES, BIG_COUNT, GAME_ENDED, USER_END_ROUND, \
     ALREADY_END_ROUND
 from tests.utils import check_empty_table_exists
@@ -152,17 +153,20 @@ class TestGameStore:
         assert information == BIG_COUNT + str(brok_acc.securities[security.code])
 
     async def test_end_game(self, store, game_model_1, users, round_10, events):
-        end_game_information = GAME_ENDED + await store.game.get_winner(game_model_1.chat_id)
-
         information_for_first = await store.game.end_round(str(users[0].vk_id), game_model_1)
         assert information_for_first == USER_END_ROUND
 
         information_for_second = await store.game.end_round(str(users[1].vk_id), game_model_1)
         assert information_for_second == USER_END_ROUND
 
-        information_for_end_game = await store.game.end_round(str(users[2].vk_id), game_model_1)
-        assert information_for_end_game == end_game_information
+        await store.game.end_round(str(users[2].vk_id), game_model_1)
         assert game_model_1.state == 'ENDED'
+
+        winner = await WinnerModel.query.where(WinnerModel.game_id == game_model_1.id).gino.first()
+        assert winner is not None
+
+        user = await UserModel.query.where(UserModel.vk_id == winner.vk_id).gino.first()
+        assert user.win_count == 1
 
     async def test_end_round(self, store, game_model_1, users, events):
         information_for_first = await store.game.end_round(str(users[0].vk_id), game_model_1)

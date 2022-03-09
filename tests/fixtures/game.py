@@ -1,6 +1,6 @@
 import pytest
 
-from app.game.models import VKProfile, User, SecuritiesForGameModel, Securities, SecuritiesModel, GameWithOptions, \
+from app.game.models import VKProfile, User, Securities, SecuritiesModel, GameWithOptions, \
     GameModel, EventModel
 from app.store.vk_api.dataclasses import Update, UpdateObject
 

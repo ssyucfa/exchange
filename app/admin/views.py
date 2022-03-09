@@ -3,8 +3,9 @@ from aiohttp_session import new_session
 
 from app.admin.schemes import AdminSchema
 from app.web.app import View
-from aiohttp.web import HTTPForbidden, HTTPUnauthorized
+from aiohttp.web import HTTPForbidden
 
+from app.web.mixins import AuthRequiredMixin
 from app.web.utils import json_response
 
 
@@ -23,9 +24,9 @@ class AdminLoginView(View):
         return response
 
 
-class AdminCurrentView(View):
+class AdminCurrentView(AuthRequiredMixin, View):
     @response_schema(AdminSchema, 200)
     async def get(self):
-        if self.request.admin:
-            return json_response(data=AdminSchema().dump(self.request.admin))
-        raise HTTPUnauthorized
+        return json_response(data=AdminSchema().dump(self.request.admin))
+
+

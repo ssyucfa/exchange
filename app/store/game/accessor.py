@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from app.base.base_accessor import BaseAccessor
 from app.game.models import UserModel, User, GameModel, UsersOfGameModel, BrokerageAccountModel, SecuritiesModel, \
     SecuritiesForGameModel, Securities, VKProfile, GameWithOptions, BrokerageAccount, SecuritiesForGame, EventModel, \
-    Event, Game
+    Event, Game, WinnerModel, GameWithWinner, Winner
 from app.game.text import NO_MONEY, BOUGHT, ALREADY_END_ROUND, USER_END_ROUND, GAME_ENDED, BIG_COUNT, \
     DONT_HAVE_SECURITIES, CELLED
 from app.store.database.gino import db
@@ -139,7 +139,7 @@ class GameAccessor(BaseAccessor):
                 securities=SecuritiesForGameModel
             )
         ).all())
-
+        # TODO: нихрена не работает в питоне, зато работает в бд
         if not res:
             return []
 
@@ -263,8 +263,8 @@ class GameAccessor(BaseAccessor):
         return information
 
     async def get_winner(self, chat_id: int) -> str:
+        print('allala')
         game = await self.get_game_with_options(chat_id)
-
         costs_of_securities = {}
         for s in game.securities:
             costs_of_securities[s.code] = s.cost
@@ -284,9 +284,13 @@ class GameAccessor(BaseAccessor):
             for key in broc_acc.securities:
                 money += broc_acc.securities[key] * costs_of_securities[key]
 
-            wallets.append((user.fio, money))
-        wallet = max(wallets, key=lambda w: w[1])
-        return f'Победитель {wallet[0]}. Цена его кошелька {wallet[1]}'
+            wallets.append({'fio': user.fio, 'vk_id': user.vk_id, 'money': money, 'win_count': user.win_count})
+        wallet = max(wallets, key=lambda w: w['money'])
+        await WinnerModel.create(vk_id=wallet['vk_id'], game_id=game.id)
+        await UserModel.update.where(UserModel.vk_id == wallet['vk_id']).values({
+            'win_count': wallet['win_count'] + 1
+        }).gino.all()
+        return f'Победитель {wallet["fio"]}. Цена его кошелька {wallet["money"]}'
 
     async def end_round(self, vk_id: str, game_model: GameModel) -> str:
         game = Game(**game_model.to_dict())
@@ -309,3 +313,28 @@ class GameAccessor(BaseAccessor):
             return await self.end_game(game_model)
 
         return await self.get_events(game.id) + 'Начинается новый раунд.'
+
+    @staticmethod
+    async def get_games_with_winners(limit: int, page: int) -> list[GameWithWinner]:
+        games = await GameModel.outerjoin(
+            WinnerModel, WinnerModel.game_id == GameModel.id
+        ).select().limit(limit).offset(page * limit - limit).gino.load(
+            GameModel.distinct(GameModel.id).load(winner=WinnerModel)).all()
+
+        return [
+            GameWithWinner(**game.to_dict(),
+                           winner=Winner(game.winner.vk_id) if game.winner else None
+                           )
+            for game in games
+        ]
+
+    @staticmethod
+    async def get_winner_by_game_id(game_id: int) -> Optional[User]:
+        user = await UserModel.outerjoin(
+            WinnerModel, WinnerModel.vk_id == UserModel.vk_id
+        ).select().where(WinnerModel.game_id == game_id).gino.load(
+            UserModel.distinct(UserModel.id).load(winner=WinnerModel)
+        ).first()
+        if not user:
+            return None
+        return User(id=user.id, fio=user.fio, vk_id=user.vk_id, win_count=user.win_count, create_at=user.create_at)

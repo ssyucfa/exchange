@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 from app.store.database.gino import db
 
@@ -20,6 +20,7 @@ class User:
     vk_id: int
     fio: str
     create_at: datetime
+    win_count: int
 
 
 @dataclass
@@ -69,6 +70,24 @@ class GameWithOptions(Game):
     securities: list[SecuritiesForGame]
 
 
+@dataclass
+class Winner:
+    vk_id: int
+
+
+@dataclass
+class GameWithWinner(Game):
+    winner: Optional[dict[Winner]] = None
+
+
+class WinnerModel(db.Model):
+    __tablename__ = 'winners'
+
+    id = db.Column(db.Integer(), primary_key=True)
+    vk_id = db.Column(db.Integer(), db.ForeignKey('users.vk_id'), nullable=False)
+    game_id = db.Column(db.Integer(), db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False)
+
+
 class UserModel(db.Model):
     __tablename__ = 'users'
 
@@ -76,6 +95,20 @@ class UserModel(db.Model):
     vk_id = db.Column(db.Integer(), nullable=False, unique=True)
     fio = db.Column(db.String(), nullable=False)
     create_at = db.Column(db.DateTime(), nullable=False)
+    win_count = db.Column(db.Integer(), default=0)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._winner: Optional[WinnerModel] = None
+
+    @property
+    def winner(self) -> Optional[WinnerModel]:
+        return self._winner
+
+    @winner.setter
+    def winner(self, val: Optional[WinnerModel]):
+        if val is not None:
+            self._winner = val
 
 
 class SecuritiesModel(db.Model):
@@ -125,14 +158,19 @@ class GameModel(db.Model):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._users: list['User'] = []
+        self._users: list['UserModel'] = []
+        self._winner: Optional[WinnerModel] = None
         self._users_id: list[int] = []
         self._securities_id: list[int] = []
         self._securities: list['SecuritiesForGame'] = []
 
     @property
-    def users(self) -> list['User']:
+    def users(self) -> list[UserModel]:
         return self._users
+
+    @property
+    def winner(self) -> Optional[WinnerModel]:
+        return self._winner
 
     @property
     def securities(self) -> list['SecuritiesForGame']:
@@ -145,10 +183,15 @@ class GameModel(db.Model):
             self._securities.append(val)
 
     @users.setter
-    def users(self, val: Optional['User']):
+    def users(self, val: Optional['UserModel']):
         if val is not None and val.id not in self._users_id:
             self._users_id.append(val.id)
             self._users.append(val)
+
+    @winner.setter
+    def winner(self, val: Optional[WinnerModel]):
+        if val is not None:
+            self._winner = val
 
 
 class UsersOfGameModel(db.Model):

@@ -125,4 +125,3 @@ class BotManager:
                     text=information
                 )
             )
-

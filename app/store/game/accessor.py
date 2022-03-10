@@ -263,7 +263,6 @@ class GameAccessor(BaseAccessor):
         return information
 
     async def get_winner(self, chat_id: int) -> str:
-        print('allala')
         game = await self.get_game_with_options(chat_id)
         costs_of_securities = {}
         for s in game.securities:
@@ -294,25 +293,25 @@ class GameAccessor(BaseAccessor):
 
     async def end_round(self, vk_id: str, game_model: GameModel) -> str:
         game = Game(**game_model.to_dict())
-        self.logger.info(game_model.to_dict())
 
         if game.users_finished_round[vk_id]:
             return ALREADY_END_ROUND
 
         game.users_finished_round[vk_id] = True
-        await game_model.update(users_finished_round=game.users_finished_round).apply()
-        if not all(finished for finished in game.users_finished_round.values()):
-            return USER_END_ROUND
+        async with db.transaction() as _:
+            await game_model.update(users_finished_round=game.users_finished_round).apply()
+            if not all(finished for finished in game.users_finished_round.values()):
+                return USER_END_ROUND
 
-        for user_id in game.users_finished_round:
-            game.users_finished_round[user_id] = False
-        game.round += 1
-        await game_model.update(users_finished_round=game.users_finished_round, round=game.round).apply()
+            for user_id in game.users_finished_round:
+                game.users_finished_round[user_id] = False
+            game.round += 1
+            await game_model.update(users_finished_round=game.users_finished_round, round=game.round).apply()
 
-        if game.round == 11:
-            return await self.end_game(game_model)
+            if game.round == 11:
+                return await self.end_game(game_model)
 
-        return await self.get_events(game.id) + 'Начинается новый раунд.'
+            return await self.get_events(game.id) + 'Начинается новый раунд.'
 
     @staticmethod
     async def get_games_with_winners(limit: int, page: int) -> list[GameWithWinner]:

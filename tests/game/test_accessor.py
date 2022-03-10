@@ -20,15 +20,12 @@ class TestGameStore:
     async def test_create_users_or_do_nothing(self, store, profiles):
         users = await store.game.create_users(profiles)
         assert len(users) == 3
-        assert users[0].id == profiles[0].id
 
         users = await store.game.create_users(profiles)
         assert len(users) == 3
-        assert users[0].id == profiles[0].id
 
         users = await UserModel.query.gino.all()
         assert len(users) == 3
-        assert users[0].vk_id == profiles[0].id
 
     async def test_create_game(self, store, users, update_1, securities):
         game_securities = await store.game.create_game(update_1, users)

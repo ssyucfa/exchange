@@ -1,7 +1,7 @@
 import typing
 from logging import getLogger
 
-from app.game.models import Securities, User, SecuritiesForGame
+from app.game.models import Securities, User, SecuritiesForGame, VKProfile
 from app.game.text import *
 from app.store.vk_api.dataclasses import Update, Message
 
@@ -39,17 +39,14 @@ class BotManager:
         words = text.split(' ')
         return len(words) == 3 and words[0] == '/cell' and words[2].isdigit()
 
-    async def start_game(self, update: Update) -> str:
+    async def start_game(self, update: Update, profiles: list[VKProfile]) -> str:
         if await self.app.store.game.get_going_game(update.object.peer_id):
             return GAME_STARTED
 
-        profiles = await self.app.store.vk_api.get_users(update.object.peer_id)
         if not profiles:
             return WAITING
 
         securities = await self.app.store.game.prepare_to_start_game(update, profiles)
-        if securities is None:
-            return UNKNOWN_ERROR
         return self.get_information_from_securities(securities=securities) + GAME_STARTING
 
     async def get_info(self, update: Update) -> str:
@@ -69,7 +66,6 @@ class BotManager:
         _, code, count = update.object.text.split(' ')
 
         game = await self.app.store.game.get_game_with_options(update.object.peer_id, code)
-        print(';s;s;')
         if not game:
             return GAME_NOT_STARTED
 
@@ -110,14 +106,15 @@ class BotManager:
             try:
                 information = ''
                 if update.object.text == '/start_game':
-                    information = await self.start_game(update)
+                    profile = await self.app.store.vk_api.get_users(update.object.peer_id)
+                    information = await self.start_game(update, profile)
                 elif update.object.text == '/info':
                     information = await self.get_info(update)
-                elif '/buy' in update.object.text:
+                elif '/buy' == update.object.text.split(' ')[0]:
                     information = await self.buy_securities(update)
                 elif update.object.text == '/end_round':
                     information = await self.end_round(update)
-                elif '/cell' in update.object.text:
+                elif '/cell' == update.object.text.split(' ')[0]:
                     information = await self.cell_securities(update)
             except Exception as e:
                 information = e
@@ -128,4 +125,3 @@ class BotManager:
                     text=information
                 )
             )
-

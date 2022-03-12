@@ -317,7 +317,7 @@ class GameAccessor(BaseAccessor):
     async def get_games_with_winners(limit: int, page: int) -> list[GameWithWinner]:
         games = await GameModel.outerjoin(
             WinnerModel, WinnerModel.game_id == GameModel.id
-        ).select().limit(limit).offset(page * limit - limit).gino.load(
+        ).select().order_by(GameModel.id).limit(limit).offset(page * limit - limit).gino.load(
             GameModel.distinct(GameModel.id).load(winner=WinnerModel)).all()
 
         return [

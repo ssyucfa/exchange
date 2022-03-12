@@ -17,7 +17,6 @@ class ListGameView(AuthRequiredMixin, View):
             limit,
             page
         )
-
         return json_response(data=ListGameSchema().dump({
             'games': games,
             'limit': limit,

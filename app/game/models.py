@@ -117,7 +117,7 @@ class SecuritiesModel(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     description = db.Column(db.String(), nullable=False)
     cost = db.Column(db.Float(), nullable=False)
-    code = db.Column(db.String(), nullable=False)
+    code = db.Column(db.String(), nullable=False, unique=True)
 
     def as_dc(self):
         return Securities(**self.to_dict())

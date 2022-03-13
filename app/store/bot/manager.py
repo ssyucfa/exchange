@@ -99,29 +99,26 @@ class BotManager:
         information = await self.app.store.game.end_round(str(update.object.user_id), game)
         return information
 
-    async def handle_updates(self, updates: list[Update]):
-        if not updates or updates is None:
-            return
-        for update in updates:
-            try:
-                information = ''
-                if update.object.text == '/start_game':
-                    profile = await self.app.store.vk_api.get_users(update.object.peer_id)
-                    information = await self.start_game(update, profile)
-                elif update.object.text == '/info':
-                    information = await self.get_info(update)
-                elif '/buy' == update.object.text.split(' ')[0]:
-                    information = await self.buy_securities(update)
-                elif update.object.text == '/end_round':
-                    information = await self.end_round(update)
-                elif '/cell' == update.object.text.split(' ')[0]:
-                    information = await self.cell_securities(update)
-            except Exception as e:
-                information = e
+    async def handle_update(self, update: Update):
+        try:
+            information = ''
+            if update.object.text == '/start_game':
+                profile = await self.app.store.vk_api.get_users(update.object.peer_id)
+                information = await self.start_game(update, profile)
+            elif update.object.text == '/info':
+                information = await self.get_info(update)
+            elif '/buy' == update.object.text.split(' ')[0]:
+                information = await self.buy_securities(update)
+            elif update.object.text == '/end_round':
+                information = await self.end_round(update)
+            elif '/cell' == update.object.text.split(' ')[0]:
+                information = await self.cell_securities(update)
+        except Exception as e:
+            information = e
 
-            await self.app.store.vk_api.send_message(
-                Message(
-                    peer_id=update.object.peer_id,
-                    text=information
-                )
+        await self.app.store.vk_api.send_message(
+            Message(
+                peer_id=update.object.peer_id,
+                text=information
             )
+        )

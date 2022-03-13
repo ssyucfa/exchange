@@ -19,6 +19,33 @@ from app.web.app import Application
 class GameAccessor(BaseAccessor):
     async def connect(self, app: "Application"):
         await app.database.connect()
+        await insert(SecuritiesModel).values(
+            [
+                {
+                    'description': "apple corporation",
+                    'cost': 100,
+                    'code': "APPLE"
+                },
+                {
+                    'description': "xiomi corporation",
+                    'cost': 50,
+                    'code': "XIOMI"
+                },
+            ]
+        ).on_conflict_do_nothing().gino.all()
+        await insert(EventModel).values(
+            [
+                {
+                    'text': "more on 10%",
+                    'diff': 1.1,
+                },
+                {
+                    'text': "less on 10%",
+                    'diff': 0.9,
+                },
+            ]
+        ).on_conflict_do_nothing().gino.all()
+
 
     async def prepare_to_start_game(self, update: Update, profiles: list[VKProfile]) -> list[Securities]:
         users = await self.create_users(profiles)
@@ -317,7 +344,7 @@ class GameAccessor(BaseAccessor):
     async def get_games_with_winners(limit: int, page: int) -> list[GameWithWinner]:
         games = await GameModel.outerjoin(
             WinnerModel, WinnerModel.game_id == GameModel.id
-        ).select().limit(limit).offset(page * limit - limit).gino.load(
+        ).select().order_by(GameModel.id).limit(limit).offset(page * limit - limit).gino.load(
             GameModel.distinct(GameModel.id).load(winner=WinnerModel)).all()
 
         return [

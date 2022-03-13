@@ -11,7 +11,7 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
-    command: python main.py
+    command: "python main.py"
     volumes:
       - .:/exchange_api
     ports:

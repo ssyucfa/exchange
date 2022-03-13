@@ -9,3 +9,4 @@ COPY requirements.txt /exchange_api/
 RUN pip install -r requirements.txt
 
 COPY . /exchange_api/
+CMD ["bash", "./start.sh"]

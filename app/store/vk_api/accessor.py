@@ -78,7 +78,7 @@ class VkApiAccessor(BaseAccessor):
                         "act": "a_check",
                         "key": self.key,
                         "ts": self.ts,
-                        "wait": 25,
+                        "wait": 30,
                     },
                 )
         ) as resp:
@@ -136,6 +136,7 @@ class VkApiAccessor(BaseAccessor):
                 return
 
             data = (await resp.json()).get("response")
+            self.logger.info(data)
             if data is None:
                 return
             return [

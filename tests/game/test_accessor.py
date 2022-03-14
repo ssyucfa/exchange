@@ -132,7 +132,7 @@ class TestGameStore:
             and_(BrokerageAccountModel.user_id == user.id, BrokerageAccountModel.game_id == game_1.id)
         ).gino.first()).as_dc()
         assert information == CELLED + f'У вас в кошельке {brok_acc.money}.' \
-                                       f' Осталось {security.code}: {brok_acc.securities[security.code]}'
+                                       f'<br>Осталось: <br>{security.code}: {brok_acc.securities[security.code]}<br>'
 
     async def test_negative_cell_securities_no_security_in_broc_acc(
             self, store, game_1, user, security, buying_securities

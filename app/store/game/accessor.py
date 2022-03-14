@@ -41,6 +41,26 @@ class GameAccessor(BaseAccessor):
                     'cost': 100,
                     'code': "BK"
                 },
+                {
+                    'description': "PS4 corporation",
+                    'cost': 175,
+                    'code': "PS"
+                },
+                {
+                    'description': "AMD corporation",
+                    'cost': 150,
+                    'code': "AMD"
+                },
+                {
+                    'description': "NVIDIA corporation",
+                    'cost': 200,
+                    'code': "NVIDIA"
+                },
+                {
+                    'description': "KFC corporation",
+                    'cost': 105,
+                    'code': "KFC"
+                },
             ]
         ).on_conflict_do_nothing().gino.all()
         await insert(EventModel).values(
@@ -61,6 +81,22 @@ class GameAccessor(BaseAccessor):
                     'text': "Less on 5%",
                     'diff': 0.95,
                 },
+                {
+                    'text': "More on 25%",
+                    'diff': 1.25,
+                },
+                {
+                    'text': "Less on 43%",
+                    'diff': 0.57,
+                },
+                {
+                    'text': "More on 54%",
+                    'diff': 1.54,
+                },
+                {
+                    'text': "Less on 17%",
+                    'diff': 0.83,
+                },
             ]
         ).on_conflict_do_nothing().gino.all()
 
@@ -69,8 +105,7 @@ class GameAccessor(BaseAccessor):
         users = await self.create_users(profiles)
         return await self.create_game(update, users)
 
-    @staticmethod
-    async def create_users(profiles: list[VKProfile]) -> list[User]:
+    async def create_users(self, profiles: list[VKProfile]) -> list[User]:
         await insert(UserModel).values(
             [
                 {
@@ -82,7 +117,7 @@ class GameAccessor(BaseAccessor):
             ]
         ).on_conflict_do_nothing(index_elements=['vk_id']).gino.all()
 
-        res = await UserModel.query.gino.all()
+        res = await UserModel.query.where(UserModel.vk_id.in_([profile.id for profile in profiles])).gino.all()
 
         return [User(**user.to_dict()) for user in res]
 
@@ -235,8 +270,8 @@ class GameAccessor(BaseAccessor):
 
         securities_json = brok_acc.securities
 
-        await brok_acc_model.update(securities=securities_json, money=money).apply()
-        return BOUGHT + f'У вас в кошельке осталось {money}'
+        await brok_acc_model.update(securities=securities_json, money=round(money, 2)).apply()
+        return BOUGHT + f'У вас в кошельке осталось {brok_acc_model.money}'
 
     @staticmethod
     async def cell_securities(vk_id: int, securities: SecuritiesForGameModel, count: str) -> str:
@@ -264,8 +299,11 @@ class GameAccessor(BaseAccessor):
 
         securities_json = brok_acc.securities
 
-        await brok_acc_model.update(securities=securities_json, money=money).apply()
-        return CELLED + f'У вас в кошельке {money}. Осталось {securities.code}: {securities_json[securities.code]}'
+        await brok_acc_model.update(securities=securities_json, money=round(money, 2)).apply()
+        count_securities = '<br>Осталось: <br>'
+        for code in brok_acc_model.securities:
+            count_securities += f'{code}: {brok_acc_model.securities[code]}<br>'
+        return CELLED + f'У вас в кошельке {brok_acc_model.money}.' + count_securities
 
     @staticmethod
     async def get_information_from_securities(
@@ -328,7 +366,7 @@ class GameAccessor(BaseAccessor):
             for key in broc_acc.securities:
                 money += broc_acc.securities[key] * costs_of_securities[key]
 
-            wallets.append({'fio': user.fio, 'vk_id': user.vk_id, 'money': money, 'win_count': user.win_count})
+            wallets.append({'fio': user.fio, 'vk_id': user.vk_id, 'money': round(money, 2), 'win_count': user.win_count})
         wallet = max(wallets, key=lambda w: w['money'])
         await WinnerModel.create(vk_id=wallet['vk_id'], game_id=game.id)
         await UserModel.update.where(UserModel.vk_id == wallet['vk_id']).values({

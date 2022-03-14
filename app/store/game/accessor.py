@@ -22,26 +22,44 @@ class GameAccessor(BaseAccessor):
         await insert(SecuritiesModel).values(
             [
                 {
-                    'description': "apple corporation",
-                    'cost': 100,
+                    'description': "Apple corporation",
+                    'cost': 150,
                     'code': "APPLE"
                 },
                 {
-                    'description': "xiomi corporation",
-                    'cost': 50,
+                    'description': "Xiomi corporation",
+                    'cost': 75,
                     'code': "XIOMI"
+                },
+                {
+                    'description': "McDonalds corporation",
+                    'cost': 110,
+                    'code': "MCD"
+                },
+                {
+                    'description': "Burger King corporation",
+                    'cost': 100,
+                    'code': "BK"
                 },
             ]
         ).on_conflict_do_nothing().gino.all()
         await insert(EventModel).values(
             [
                 {
-                    'text': "more on 10%",
+                    'text': "More on 10%",
                     'diff': 1.1,
                 },
                 {
-                    'text': "less on 10%",
+                    'text': "Less on 10%",
                     'diff': 0.9,
+                },
+                {
+                    'text': "More on 5%",
+                    'diff': 1.05,
+                },
+                {
+                    'text': "Less on 5%",
+                    'diff': 0.95,
                 },
             ]
         ).on_conflict_do_nothing().gino.all()
@@ -166,7 +184,7 @@ class GameAccessor(BaseAccessor):
                 securities=SecuritiesForGameModel
             )
         ).all())
-        # TODO: нихрена не работает в питоне, зато работает в бд
+
         if not res:
             return []
 
@@ -262,7 +280,7 @@ class GameAccessor(BaseAccessor):
             s.cost = round(s.cost * event.diff, 2)
             await sm.update(cost=s.cost).apply()
             information += f'{event.text} Акции {s.code} изменились на {event.diff}. Старая цена {old_cost}.' \
-                           f' Новая цена {s.cost}. '
+                           f' Новая цена {s.cost}<br>'
 
         return information
 
@@ -320,7 +338,7 @@ class GameAccessor(BaseAccessor):
 
     async def end_round(self, vk_id: str, game_model: GameModel) -> str:
         game = Game(**game_model.to_dict())
-
+        
         if game.users_finished_round[vk_id]:
             return ALREADY_END_ROUND
 

@@ -181,3 +181,4 @@ class TestGameStore:
 
         information = await store.game.end_round(str(user.vk_id), game_model_1)
         assert information == ALREADY_END_ROUND
+    

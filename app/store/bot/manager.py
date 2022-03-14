@@ -16,17 +16,21 @@ class BotManager:
         self.logger = getLogger("handler")
 
     @staticmethod
+    def get_commands():
+        return ALL_COMMANDS
+
+    @staticmethod
     def get_information_from_securities(securities: typing.Union[list[Securities], list[SecuritiesForGame]]) -> str:
-        information = 'Ценные бумаги: '
+        information = 'Ценные бумаги:<br>'
         for s in securities:
-            information += f'{s.description} Code: {s.code} Price for one: {s.cost} '
+            information += f'{s.description}. Code: {s.code}. Price for one: {s.cost}<br>'
         return information
 
     @staticmethod
     def get_information_from_users(users: list[User]) -> str:
-        information = 'Участники: '
+        information = 'Участники:<br>'
         for u in users:
-            information += f'{u.fio}, '
+            information += f'{u.fio}<br>'
         return information
 
     @staticmethod
@@ -69,6 +73,9 @@ class BotManager:
         if not game:
             return GAME_NOT_STARTED
 
+        if game.users_finished_round.get(str(update.object.user_id)) is None:
+            return USER_IS_NOT_PLAYING
+        
         if not game.securities:
             return SECURITIES_IS_NOT_EXIST
 
@@ -85,6 +92,9 @@ class BotManager:
         if not game:
             return GAME_NOT_STARTED
 
+        if game.users_finished_round.get(str(update.object.user_id)) is None:
+            return USER_IS_NOT_PLAYING
+
         if not game.securities:
             return SECURITIES_IS_NOT_EXIST
 
@@ -95,6 +105,9 @@ class BotManager:
         game = await self.app.store.game.get_going_game(update.object.peer_id)
         if not game:
             return GAME_NOT_STARTED
+        
+        if game.users_finished_round.get(str(update.object.user_id)) is None:
+            return USER_IS_NOT_PLAYING
 
         information = await self.app.store.game.end_round(str(update.object.user_id), game)
         return information
@@ -113,6 +126,8 @@ class BotManager:
                 information = await self.end_round(update)
             elif '/cell' == update.object.text.split(' ')[0]:
                 information = await self.cell_securities(update)
+            elif '/commands' == update.object.text:
+                information = self.get_commands()
         except Exception as e:
             information = e
 

@@ -13,3 +13,5 @@ WRONG_MESSAGE_FOR_CELL = 'Неверный формат ввода("/cell <code>
 BIG_COUNT = 'У вас недостачное кол-во акций: '
 DONT_HAVE_SECURITIES = 'У вас нет этих акций'
 CELLED = 'Продажа прошла успешно!'
+USER_IS_NOT_PLAYING = 'Вы не в игре, ждите следующей игры.'
+ALL_COMMANDS = '"/buy <code> <count>"<br>/cell <code> <count>"<br>"/info"<br>"/end_round"'
